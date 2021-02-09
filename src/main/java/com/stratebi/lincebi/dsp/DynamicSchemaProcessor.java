@@ -1,6 +1,7 @@
 package com.stratebi.lincebi.dsp;
 
 import java.io.InputStream;
+import java.util.List;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -21,10 +22,10 @@ public class DynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor {
 		String schema = super.filter(schemaUrl, connectInfo, stream);
 
 		IPentahoSession session = PentahoSessionHolder.getSession();
-		String user = STR_QUOTE + session.getName() + STR_QUOTE;
+		String user = session.getName();
 
 		IUserRoleListService service = PentahoSystem.get(IUserRoleListService.class);
-		String roles = STR_QUOTE + String.join(STR_QUOTE + "," + STR_QUOTE, service.getRolesForUser(null, user)) + STR_QUOTE;
+		List<String> roles = service.getRolesForUser(null, user);
 
 		Boolean printToLogFound = Pattern.compile("\\[CDATA\\[(DSP_PRINT_TO_LOG=true)\\]\\]", Pattern.CASE_INSENSITIVE).matcher(schema).find();
 		Boolean userPatternFound = false, rolesPatternFound = false;
@@ -35,8 +36,8 @@ public class DynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor {
 		}
 
 		try {
-			schema = schema.replaceAll("\\$\\{USER\\}", user);
-			schema = schema.replaceAll("\\$\\{ROLES\\}", roles);
+			schema = schema.replaceAll("\\$\\{USER\\}", STR_QUOTE + user + STR_QUOTE);
+			schema = schema.replaceAll("\\$\\{ROLES\\}", STR_QUOTE + String.join(STR_QUOTE + "," + STR_QUOTE, roles) + STR_QUOTE);
 		} catch (PatternSyntaxException pse) {
 			System.out.println("[DSP] Error. Schema was not processed: " + schema);
 			pse.printStackTrace();
@@ -45,7 +46,7 @@ public class DynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor {
 		if (printToLogFound) {
 			System.out.println("[DSP] User session: " + user);
 			System.out.println("[DSP] User pattern found: " + userPatternFound);
-			System.out.println("[DSP] Roles session: " + roles);
+			System.out.println("[DSP] Roles session: " + String.join(", ", roles));
 			System.out.println("[DSP] Roles pattern found: " + rolesPatternFound);
 			System.out.println("[DSP] Replaced Schema: " + schema);
 		}
