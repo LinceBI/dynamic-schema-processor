@@ -14,17 +14,19 @@ import mondrian.olap.Util;
 
 public class DynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor {
 
+	private static final String STR_QUOTE = "'";
+
 	@Override
 	public String filter(String schemaUrl, Util.PropertyList connectInfo, InputStream stream) throws Exception {
 		String schema = super.filter(schemaUrl, connectInfo, stream);
 
 		IPentahoSession session = PentahoSessionHolder.getSession();
-		String user = session.getName();
+		String user = STR_QUOTE + session.getName() + STR_QUOTE;
 
 		IUserRoleListService service = PentahoSystem.get(IUserRoleListService.class);
-		String roles = String.join("','", service.getRolesForUser(null, user));
+		String roles = STR_QUOTE + String.join(STR_QUOTE + "," + STR_QUOTE, service.getRolesForUser(null, user)) + STR_QUOTE;
 
-		Boolean printToLogFound = Pattern.compile("\\[CDATA\\[(dsp_print_to_log=true)\\]\\]", Pattern.CASE_INSENSITIVE).matcher(schema).find();
+		Boolean printToLogFound = Pattern.compile("\\[CDATA\\[(DSP_PRINT_TO_LOG=true)\\]\\]", Pattern.CASE_INSENSITIVE).matcher(schema).find();
 		Boolean userPatternFound = false, rolesPatternFound = false;
 
 		if (printToLogFound) {
