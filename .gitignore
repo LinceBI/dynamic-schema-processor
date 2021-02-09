@@ -1,0 +1,47 @@
+## Java
+*.class
+
+## Gradle
+build/
+.gradle/
+
+## Eclipse
+*.bak
+*.launch
+*.swp
+*.tmp
+*~.nib
+.classpath
+.loadpath
+.metadata
+.project
+.recommenders
+.settings/
+bin/
+local.properties
+tmp/
+
+## JetBrains
+.idea/
+
+## VSCode
+.vscode/
+
+## Packages
+*.7z
+*.ear
+*.rar
+*.tar
+*.tar.bz2
+*.tar.gz
+*.tar.xz
+*.tgz
+*.war
+*.zip
+
+## Config
+project.properties
+
+## Misc
+*.DS_Store
+*.log

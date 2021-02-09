@@ -1,0 +1,81 @@
+stages:
+  - "build"
+  - "deploy"
+
+.variables: &variables
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  GRADLE_USER_HOME: "./.gradle/"
+
+.variables_develop: &variables_develop
+  <<: *variables
+  ORG_GRADLE_PROJECT_versionRef: "${CI_COMMIT_REF_SLUG}"
+
+.variables_release: &variables_release
+  <<: *variables
+  ORG_GRADLE_PROJECT_versionRelease: "true"
+
+.artifacts: &artifacts
+  expire_in: "15 mins"
+  paths:
+    - "./build/"
+
+.cache: &cache
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - "./.gradle/"
+
+.regex:
+  # Semantic Versioning 2.0.0 regex (from: https://github.com/npm/node-semver/).
+  - &regex_version "/^v?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][a-zA-Z0-9-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][a-zA-Z0-9-]*))*))?(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$/"
+
+build:develop:
+  stage: "build"
+  variables:
+    <<: *variables_develop
+  script:
+    - "./gradlew"
+  artifacts:
+    <<: *artifacts
+  cache:
+    <<: *cache
+  except:
+    - *regex_version
+
+build:release:
+  stage: "build"
+  variables:
+    <<: *variables_release
+  script:
+    - "./gradlew"
+  artifacts:
+    <<: *artifacts
+  cache:
+    <<: *cache
+  only:
+    - *regex_version
+
+deploy:develop:mvn:
+  stage: "deploy"
+  dependencies:
+    - "build:develop"
+  variables:
+    <<: *variables_develop
+  script:
+    - "./gradlew publish"
+  cache:
+    <<: *cache
+  except:
+    - *regex_version
+
+deploy:release:mvn:
+  stage: "deploy"
+  dependencies:
+    - "build:release"
+  variables:
+    <<: *variables_release
+  script:
+    - "./gradlew publish"
+  cache:
+    <<: *cache
+  only:
+    - *regex_version
