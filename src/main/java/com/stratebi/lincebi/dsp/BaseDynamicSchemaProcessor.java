@@ -2,10 +2,8 @@ package com.stratebi.lincebi.dsp;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -14,99 +12,128 @@ import java.util.stream.Collectors;
 
 import mondrian.i18n.LocalizingDynamicSchemaProcessor;
 import mondrian.olap.Util.PropertyList;
+import mondrian.spi.DynamicSchemaProcessor;
 
-public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor {
+public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor implements DynamicSchemaProcessor {
 
 	private static final String OPT_DSP_DEBUG = "DSP_DEBUG";
 	private static final String SQL_STR_QUOTE = "'";
 
-	private final List<String> optList = Arrays.asList(OPT_DSP_DEBUG);
+	private final Map<String, String> optMap = new HashMap<String, String>();
 	private final Map<String, Function<Map<String, String>, Object>> varMap = new HashMap<String, Function<Map<String, String>, Object>>();
 
 	@Override
 	public String filter(String schemaUrl, PropertyList connectInfo, InputStream stream) throws Exception {
 		String schema = super.filter(schemaUrl, connectInfo, stream);
+		return this.postReplaceHook(this.replaceSchema(this.preReplaceHook(schema)));
+	}
 
-		try {
-			Map<String, String> opts = new HashMap<String, String>();
-			for (String name : this.optList) {
-				Pattern pattern = schemaOptPattern(name);
-				String value = matcherGroup(pattern.matcher(schema), 1);
-				opts.put(name, value);
-			}
-
-			boolean debug = opts.getOrDefault(OPT_DSP_DEBUG, "").equalsIgnoreCase("true");
-
-			for (Map.Entry<String, Function<Map<String, String>, Object>> var : this.varMap.entrySet()) {
-				String name = var.getKey();
-				Pattern pattern = schemaVarPattern(name);
-				boolean found = pattern.matcher(schema).find();
-				Object value = var.getValue().apply(opts);
-
-				if (debug) {
-					System.out.println("[DSP] ${" + name + "} value: " + value);
-					System.out.println("[DSP] ${" + name + "} found: " + found);
-				}
-
-				if (found) {
-					if (value instanceof Collection) {
-						Collection<Object> collection = new ArrayList<>((Collection<?>) value);
-						schema = replaceSchemaCollection(pattern, collection, schema);
-					} else {
-						schema = replaceSchemaObject(pattern, value, schema);
-					}
-				}
-			}
-
-			if (debug) {
-				System.out.println("[DSP] Replaced Schema:\n" + schema);
-			}
-		} catch (Exception ex) {
-			System.err.println("[DSP] Error. Schema was not processed:\n" + schema);
-			ex.printStackTrace();
-		}
+	public String preReplaceHook(String schema) {
+		this.addOpt(OPT_DSP_DEBUG, "false");
 
 		return schema;
 	}
 
-	public void addOpt(String name) {
-		this.optList.add(name);
+	public String postReplaceHook(String schema) {
+		return schema;
+	}
+
+	public Map<String, String> getOpts() {
+		return new HashMap<String, String>(this.optMap);
+	}
+
+	public String getOpt(String name) {
+		return this.optMap.get(name);
+	}
+
+	public void addOpt(String name, String value) {
+		this.optMap.put(name, value);
 	}
 
 	public void removeOpt(String name) {
-		this.optList.remove(name);
+		this.optMap.remove(name);
+	}
+
+	public Map<String, Function<Map<String, String>, Object>> getVars() {
+		return new HashMap<String, Function<Map<String, String>, Object>>(this.varMap);
+	}
+
+	public Function<Map<String, String>, Object> getVar(String name) {
+		return this.varMap.get(name);
 	}
 
 	public void addVar(String name, Function<Map<String, String>, Object> operator) {
 		this.varMap.put(name, operator);
 	}
 
+	public void addVar(String name, Object value) {
+		this.varMap.put(name, opts -> value);
+	}
+
 	public void removeVar(String name) {
 		this.varMap.remove(name);
 	}
 
-	public static Pattern schemaOptPattern(String opt) {
-		return Pattern.compile(
-			"\\<!\\[CDATA\\[\\s*" + opt + "\\s*=\\s*(.*?)\\s*\\]\\]>",
-			Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL
-		);
+	private String replaceSchema(String schema) {
+		try {
+			Map<String, String> schemaOptMap = this.getOpts();
+			Map<String, Function<Map<String, String>, Object>> schemaVarMap = this.getVars();
+
+			for (Map.Entry<String, String> opt : schemaOptMap.entrySet()) {
+				String name = opt.getKey();
+				Matcher matcher = schemaOptPattern(name).matcher(schema);
+				boolean found = matcher.find() && matcher.groupCount() > 0;
+				if (found) schemaOptMap.put(name, matcher.group(1));
+			}
+
+			boolean debug = schemaOptMap.getOrDefault(OPT_DSP_DEBUG, "").equalsIgnoreCase("true");
+
+			for (Map.Entry<String, Function<Map<String, String>, Object>> var : schemaVarMap.entrySet()) {
+				String name = var.getKey();
+				Matcher matcher = schemaVarPattern(name).matcher(schema);
+				boolean found = matcher.find();
+				Object value;
+
+				try {
+					value = var.getValue().apply(schemaOptMap);
+				} catch (Exception ex) {
+					System.err.println("[DSP][ERROR] ${" + name + "} was not processed");
+					ex.printStackTrace();
+					continue;
+				}
+
+				if (debug) {
+					System.out.println("[DSP][INFO] ${" + name + "} value: " + value);
+					System.out.println("[DSP][INFO] ${" + name + "} found: " + found);
+				}
+
+				if (found && value != null) {
+					if (value instanceof Collection) {
+						Collection<Object> collection = new ArrayList<>((Collection<?>) value);
+						schema = replaceSchemaCollection(matcher, collection);
+					} else {
+						schema = replaceSchemaObject(matcher, value);
+					}
+				}
+			}
+
+			if (debug) {
+				System.out.println("[DSP][INFO] Replaced Schema:\n" + schema);
+			}
+		} catch (Exception ex) {
+			System.err.println("[DSP][ERROR] Schema was not processed:\n" + schema);
+			ex.printStackTrace();
+		}
+
+		return schema;
 	}
 
-	public static Pattern schemaVarPattern(String var) {
-		return Pattern.compile(
-			"\\$\\{" + var + "\\}",
-			Pattern.CASE_INSENSITIVE
-		);
+	private String replaceSchemaObject(Matcher matcher, Object obj) {
+		return matcher.replaceAll(sqlQuote(obj));
 	}
 
-	public static String replaceSchemaObject(Pattern pattern, Object obj, String schema) {
-		return obj != null
-			? pattern.matcher(schema).replaceAll(sqlQuote(obj))
-			: schema;
-	}
-
-	public static String replaceSchemaCollection(Pattern pattern, Collection<Object> collection, String schema) {
-		return pattern.matcher(schema).replaceAll(
+	private String replaceSchemaCollection(Matcher matcher, Collection<Object> collection) {
+		return matcher.replaceAll(
 			String.join(",", collection.stream()
 				.filter(obj -> obj != null)
 				.map(obj -> sqlQuote(obj))
@@ -115,14 +142,22 @@ public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor
 		);
 	}
 
-	public static String matcherGroup(Matcher matcher, int index) {
-		return matcher.find() && matcher.groupCount() >= index
-			? matcher.group(index)
-			: "";
+	private static Pattern schemaOptPattern(String name) {
+		return Pattern.compile(
+			"\\<!\\[CDATA\\[\\s*" + name + "\\s*=\\s*(.*?)\\s*\\]\\]>",
+			Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL
+		);
+	}
+
+	private static Pattern schemaVarPattern(String name) {
+		return Pattern.compile(
+			"\\$\\{" + name + "\\}",
+			Pattern.CASE_INSENSITIVE
+		);
 	}
 
 	// This method does a very simple sanitization, it is NOT safe to use with untrusted data.
-	public static String sqlQuote(Object obj) {
+	private static String sqlQuote(Object obj) {
 		return SQL_STR_QUOTE + obj.toString().replaceAll(SQL_STR_QUOTE, "") + SQL_STR_QUOTE;
 	}
 

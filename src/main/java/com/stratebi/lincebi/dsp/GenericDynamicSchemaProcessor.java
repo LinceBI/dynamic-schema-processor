@@ -1,6 +1,5 @@
 package com.stratebi.lincebi.dsp;
 
-import java.io.InputStream;
 import java.util.List;
 
 import org.pentaho.platform.api.engine.IPentahoSession;
@@ -9,24 +8,26 @@ import org.pentaho.platform.engine.core.system.PentahoSessionHolder;
 import org.pentaho.platform.engine.core.system.PentahoSystem;
 import org.pentaho.platform.util.messages.LocaleHelper;
 
-import mondrian.olap.Util.PropertyList;
+import mondrian.spi.DynamicSchemaProcessor;
 
-public class GenericDynamicSchemaProcessor extends BaseDynamicSchemaProcessor {
+public class GenericDynamicSchemaProcessor extends BaseDynamicSchemaProcessor implements DynamicSchemaProcessor {
 
 	@Override
-	public String filter(String schemaUrl, PropertyList connectInfo, InputStream stream) throws Exception {
+	public String preReplaceHook(String schema) {
+		schema = super.preReplaceHook(schema);
+
 		IPentahoSession session = PentahoSessionHolder.getSession();
 		String user = session.getName();
-		this.addVar("USER", opts -> user);
+		this.addVar("USER", user);
 
 		IUserRoleListService roleListService = PentahoSystem.get(IUserRoleListService.class);
 		List<String> roles = roleListService.getRolesForUser(null, user);
-		this.addVar("ROLES", opts -> roles);
+		this.addVar("ROLES", roles);
 
 		String lang = LocaleHelper.getLocale().getLanguage();
-		this.addVar("LANG", opts -> lang);
+		this.addVar("LANG", lang);
 
-		return super.filter(schemaUrl, connectInfo, stream);
+		return schema;
 	}
 
 }
