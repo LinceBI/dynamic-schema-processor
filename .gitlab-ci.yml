@@ -15,7 +15,7 @@ stages:
   ORG_GRADLE_PROJECT_versionSuffix: ""
 
 .artifacts: &artifacts
-  expire_in: "15 mins"
+  expire_in: "30 mins"
   paths:
     - "./build/"
 
@@ -33,7 +33,7 @@ build:develop:
   variables:
     <<: *variables_develop
   script:
-    - "./gradlew"
+    - "./gradlew build"
   artifacts:
     <<: *artifacts
   cache:
@@ -46,7 +46,7 @@ build:release:
   variables:
     <<: *variables_release
   script:
-    - "./gradlew"
+    - "./gradlew build"
   artifacts:
     <<: *artifacts
   cache:
