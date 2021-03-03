@@ -8,11 +8,11 @@ stages:
 
 .variables_develop: &variables_develop
   <<: *variables
-  ORG_GRADLE_PROJECT_versionRef: "${CI_COMMIT_REF_SLUG}"
+  ORG_GRADLE_PROJECT_versionSuffix: "-${CI_COMMIT_REF_SLUG}-SNAPSHOT"
 
 .variables_release: &variables_release
   <<: *variables
-  ORG_GRADLE_PROJECT_versionRelease: "true"
+  ORG_GRADLE_PROJECT_versionSuffix: ""
 
 .artifacts: &artifacts
   expire_in: "15 mins"
