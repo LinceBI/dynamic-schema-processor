@@ -1,6 +1,7 @@
 plugins {
 	id("java-library")
 	id("maven-publish")
+	id("nebula.dependency-lock") version "11.2.0"
 }
 
 java.sourceCompatibility = JavaVersion.VERSION_1_8
