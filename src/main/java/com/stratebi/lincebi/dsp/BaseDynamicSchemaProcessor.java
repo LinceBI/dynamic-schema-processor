@@ -17,7 +17,6 @@ import mondrian.spi.DynamicSchemaProcessor;
 public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor implements DynamicSchemaProcessor {
 
 	private static final String OPT_DSP_DEBUG = "DSP_DEBUG";
-	private static final String SQL_STR_QUOTE = "'";
 
 	private final Map<String, String> optMap = new HashMap<String, String>();
 	private final Map<String, Function<Map<String, String>, Object>> varMap = new HashMap<String, Function<Map<String, String>, Object>>();
@@ -158,7 +157,7 @@ public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor
 
 	// This method does a very simple sanitization, it is NOT safe to use with untrusted data.
 	private static String sqlQuote(Object obj) {
-		return SQL_STR_QUOTE + obj.toString().replaceAll(SQL_STR_QUOTE, "") + SQL_STR_QUOTE;
+		return "'" + obj.toString().replaceAll("'", "''") + "'";
 	}
 
 }
