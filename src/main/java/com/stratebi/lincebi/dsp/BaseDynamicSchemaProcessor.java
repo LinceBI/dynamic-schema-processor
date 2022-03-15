@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,8 +19,8 @@ public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor
 
 	private static final String OPT_DSP_DEBUG = "DSP_DEBUG";
 
-	private final Map<String, String> optMap = new HashMap<String, String>();
-	private final Map<String, Function<Map<String, String>, Object>> varMap = new HashMap<String, Function<Map<String, String>, Object>>();
+	private final Map<String, String> optMap = new HashMap<>();
+	private final Map<String, Function<Map<String, String>, String>> varMap = new HashMap<>();
 
 	@Override
 	public String filter(String schemaUrl, PropertyList connectInfo, InputStream stream) throws Exception {
@@ -38,7 +39,7 @@ public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor
 	}
 
 	public Map<String, String> getOpts() {
-		return new HashMap<String, String>(this.optMap);
+		return new HashMap<>(this.optMap);
 	}
 
 	public String getOpt(String name) {
@@ -53,20 +54,34 @@ public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor
 		this.optMap.remove(name);
 	}
 
-	public Map<String, Function<Map<String, String>, Object>> getVars() {
-		return new HashMap<String, Function<Map<String, String>, Object>>(this.varMap);
+	public Map<String, Function<Map<String, String>, String>> getVars() {
+		return new HashMap<>(this.varMap);
 	}
 
-	public Function<Map<String, String>, Object> getVar(String name) {
+	public Function<Map<String, String>, String> getVar(String name) {
 		return this.varMap.get(name);
 	}
 
-	public void addVar(String name, Function<Map<String, String>, Object> operator) {
-		this.varMap.put(name, operator);
+	public void addVar(String name, Object value) {
+		this.addVar(name, value, true);
 	}
 
-	public void addVar(String name, Object value) {
-		this.varMap.put(name, opts -> value);
+	public void addVar(String name, Object value, boolean quoted) {
+		this.addVar(name, opts -> {
+			if (value instanceof Collection) {
+				Collection<Object> collection = new ArrayList<>((Collection<?>) value);
+				return collection.stream()
+					.filter(Objects::nonNull)
+					.map(obj -> quoted ? sqlQuote(obj) : obj.toString())
+					.collect(Collectors.joining(","));
+			} else {
+				return quoted ? sqlQuote(value) : value.toString();
+			}
+		});
+	}
+
+	public void addVar(String name, Function<Map<String, String>, String> operator) {
+		this.varMap.put(name, operator);
 	}
 
 	public void removeVar(String name) {
@@ -76,8 +91,6 @@ public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor
 	private String replaceSchema(String schema) {
 		try {
 			Map<String, String> schemaOptMap = this.getOpts();
-			Map<String, Function<Map<String, String>, Object>> schemaVarMap = this.getVars();
-
 			for (Map.Entry<String, String> opt : schemaOptMap.entrySet()) {
 				String name = opt.getKey();
 				Matcher matcher = schemaOptPattern(name).matcher(schema);
@@ -87,31 +100,29 @@ public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor
 
 			boolean debug = schemaOptMap.getOrDefault(OPT_DSP_DEBUG, "").equalsIgnoreCase("true");
 
-			for (Map.Entry<String, Function<Map<String, String>, Object>> var : schemaVarMap.entrySet()) {
+			Map<String, Function<Map<String, String>, String>> schemaVarMap = this.getVars();
+			for (Map.Entry<String, Function<Map<String, String>, String>> var : schemaVarMap.entrySet()) {
 				String name = var.getKey();
 				Matcher matcher = schemaVarPattern(name).matcher(schema);
+
 				boolean found = matcher.find();
-				Object value;
-
-				try {
-					value = var.getValue().apply(schemaOptMap);
-				} catch (Exception ex) {
-					System.err.println("[DSP][ERROR] ${" + name + "} was not processed");
-					ex.printStackTrace();
-					continue;
-				}
-
 				if (debug) {
-					System.out.println("[DSP][INFO] ${" + name + "} value: " + value);
 					System.out.println("[DSP][INFO] ${" + name + "} found: " + found);
 				}
 
-				if (found && value != null) {
-					if (value instanceof Collection) {
-						Collection<Object> collection = new ArrayList<>((Collection<?>) value);
-						schema = replaceSchemaCollection(matcher, collection);
-					} else {
-						schema = replaceSchemaObject(matcher, value);
+				if (found) {
+					try {
+						String value = var.getValue().apply(schemaOptMap);
+						if (debug) {
+							System.out.println("[DSP][INFO] ${" + name + "} value: " + value);
+						}
+
+						if (value != null) {
+							schema = matcher.replaceAll(value);
+						}
+					} catch (Exception ex) {
+						System.err.println("[DSP][ERROR] ${" + name + "} was not processed");
+						ex.printStackTrace();
 					}
 				}
 			}
@@ -127,30 +138,16 @@ public class BaseDynamicSchemaProcessor extends LocalizingDynamicSchemaProcessor
 		return schema;
 	}
 
-	private String replaceSchemaObject(Matcher matcher, Object obj) {
-		return matcher.replaceAll(sqlQuote(obj));
-	}
-
-	private String replaceSchemaCollection(Matcher matcher, Collection<Object> collection) {
-		return matcher.replaceAll(
-			String.join(",", collection.stream()
-				.filter(obj -> obj != null)
-				.map(obj -> sqlQuote(obj))
-				.collect(Collectors.toList())
-			)
-		);
-	}
-
 	private static Pattern schemaOptPattern(String name) {
 		return Pattern.compile(
-			"\\<!\\[CDATA\\[\\s*" + name + "\\s*=\\s*(.*?)\\s*\\]\\]>",
+			"<!\\[CDATA\\[\\s*" + name + "\\s*=\\s*(.*?)\\s*]]>",
 			Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL
 		);
 	}
 
 	private static Pattern schemaVarPattern(String name) {
 		return Pattern.compile(
-			"\\$\\{" + name + "\\}",
+			"\\$\\{" + name + "}",
 			Pattern.CASE_INSENSITIVE
 		);
 	}
