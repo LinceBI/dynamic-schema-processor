@@ -1,7 +1,7 @@
 plugins {
 	id("java-library")
 	id("maven-publish")
-	id("nebula.dependency-lock") version "12.5.1"
+	id("nebula.dependency-lock") version "12.6.1"
 }
 
 java.sourceCompatibility = JavaVersion.VERSION_1_8
@@ -15,9 +15,9 @@ repositories {
 }
 
 dependencies {
-	compileOnly("pentaho:pentaho-platform-api:9.3.0.0-428") { isTransitive = false }
-	compileOnly("pentaho:pentaho-platform-core:9.3.0.0-428") { isTransitive = false }
-	compileOnly("pentaho:mondrian:9.3.0.0-428") { isTransitive = false }
+	compileOnly("pentaho:pentaho-platform-api:9.3.0.1-552") { isTransitive = false }
+	compileOnly("pentaho:pentaho-platform-core:9.3.0.1-552") { isTransitive = false }
+	compileOnly("pentaho:mondrian:9.3.0.1-552") { isTransitive = false }
 }
 
 publishing {
