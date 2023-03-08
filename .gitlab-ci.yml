@@ -79,3 +79,39 @@ deploy:release:mvn:
     <<: *cache
   only:
     - *regex_version
+
+.deploy:develop:testing:template:
+  stage: "deploy"
+  dependencies:
+    - "build:develop"
+  script:
+    - "mkdir -p ./30_dsp-autodeploy/tomcat/webapps/pentaho/WEB-INF/lib/"
+    - "mv ./build/libs/*.jar ./30_dsp-autodeploy/tomcat/webapps/pentaho/WEB-INF/lib/"
+    - "(cd ./30_dsp-autodeploy/; zip -r ../30_dsp-autodeploy.zip ./)"
+    - |
+      lftp <<-EOF
+        set sftp:connect-program 'ssh -oStrictHostKeyChecking=no';
+        open 'sftp://${LINCEBI_TESTING_SFTP_USER:?}:${LINCEBI_TESTING_SFTP_PASSWORD:?}@${LINCEBI_TESTING_SFTP_HOST:?}:${LINCEBI_TESTING_SFTP_PORT:?}';
+        put -O './data/${LINCEBI_TESTING_ENV:?}/init.d/' ./30_dsp-autodeploy.zip;
+        bye;
+      EOF
+  except:
+    - *regex_version
+
+deploy:develop:testing:a:manual:
+  extends: ".deploy:develop:testing:template"
+  when: "manual"
+  variables:
+    LINCEBI_TESTING_ENV: "a"
+  only: ["master"]
+
+deploy:develop:testing:b:manual:
+  extends: ".deploy:develop:testing:template"
+  when: "manual"
+  variables:
+    LINCEBI_TESTING_ENV: "b"
+  only: ["master", "/^[0-9]+-.+$/"]
+
+deploy:develop:testing:*:scheduled:
+  extends: ".deploy:develop:testing:template"
+  only: ["schedules"]
