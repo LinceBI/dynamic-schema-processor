@@ -1,7 +1,7 @@
 plugins {
 	id("java-library")
 	id("maven-publish")
-	id("com.netflix.nebula.dependency-lock") version "13.2.0"
+	id("com.netflix.nebula.dependency-lock") version "13.2.2"
 }
 
 java.sourceCompatibility = JavaVersion.VERSION_1_8
@@ -15,9 +15,9 @@ repositories {
 }
 
 dependencies {
-	compileOnly("pentaho:pentaho-platform-api:9.3.0.3-702") { isTransitive = false }
-	compileOnly("pentaho:pentaho-platform-core:9.3.0.3-702") { isTransitive = false }
-	compileOnly("pentaho:mondrian:9.3.0.3-702") { isTransitive = false }
+	compileOnly("pentaho:pentaho-platform-api:9.3.0.4-717") { isTransitive = false }
+	compileOnly("pentaho:pentaho-platform-core:9.3.0.4-717") { isTransitive = false }
+	compileOnly("pentaho:mondrian:9.3.0.4-717") { isTransitive = false }
 }
 
 publishing {
