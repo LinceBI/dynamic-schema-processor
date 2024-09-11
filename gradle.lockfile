@@ -1,7 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
-pentaho:mondrian:9.3.0.9-874=compileClasspath
-pentaho:pentaho-platform-api:9.3.0.9-874=compileClasspath
-pentaho:pentaho-platform-core:9.3.0.9-874=compileClasspath
+pentaho:mondrian:9.3.0.9-875=compileClasspath
+pentaho:pentaho-platform-api:9.3.0.9-875=compileClasspath
+pentaho:pentaho-platform-core:9.3.0.9-875=compileClasspath
 empty=annotationProcessor,runtimeClasspath,testAnnotationProcessor,testCompileClasspath,testRuntimeClasspath

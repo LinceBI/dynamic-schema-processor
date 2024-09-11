@@ -15,9 +15,9 @@ repositories {
 }
 
 dependencies {
-	compileOnly("pentaho:pentaho-platform-api:9.3.0.9-874") { isTransitive = false }
-	compileOnly("pentaho:pentaho-platform-core:9.3.0.9-874") { isTransitive = false }
-	compileOnly("pentaho:mondrian:9.3.0.9-874") { isTransitive = false }
+	compileOnly("pentaho:pentaho-platform-api:9.3.0.9-875") { isTransitive = false }
+	compileOnly("pentaho:pentaho-platform-core:9.3.0.9-875") { isTransitive = false }
+	compileOnly("pentaho:mondrian:9.3.0.9-875") { isTransitive = false }
 }
 
 publishing {
